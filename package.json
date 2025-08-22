@@ -1,0 +1,55 @@
+{
+  "name": "vite-plugin-swagger-mcp",
+  "version": "0.0.1",
+  "description": "vite plugin for swagger mcp",
+  "homepage": "https://github.com/mmctjj/vite-plugin-swagger-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mmctjj/vite-plugin-swagger-mcp.git"
+  },
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/esm/index.js",
+      "types": "./dist/esm/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "father dev",
+    "build": "father build",
+    "build:deps": "father prebundle",
+    "prepublishOnly": "father doctor && npm run build"
+  },
+  "keywords": [
+    "vite",
+    "plugin",
+    "swagger",
+    "mcp"
+  ],
+  "authors": [
+    "984808285@qq.com"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "compiled"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "vite": "*"
+  },
+  "devDependencies": {
+    "father": "^4.6.3",
+    "vite": "^5.3.5"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.3",
+    "@types/node": "^24.3.0",
+    "zod": "^3.25.76"
+  }
+}
