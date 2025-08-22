@@ -161,17 +161,6 @@ function vitePluginSwaggerMcp({
           name: "swagger-mcp-server",
           version: "0.1.0"
         });
-        mcpServer.tool("updateSwaggerDoc", "获取最新接口文档", async () => {
-          const res = await swaggerServer.getModules();
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(res)
-              }
-            ]
-          };
-        });
         mcpServer.tool("getModules", "获取模块列表", async () => {
           const res = await swaggerServer.getModules();
           return {

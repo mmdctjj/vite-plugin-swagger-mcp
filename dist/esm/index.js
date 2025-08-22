@@ -236,12 +236,12 @@ export default function vitePluginSwaggerMcp(_ref) {
     name: "vite-plugin-swagger-mcp",
     enforce: "pre",
     configureServer: function configureServer(server) {
-      return _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee10() {
+      return _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee9() {
         var transport, swaggerServer, mcpServer;
-        return _regeneratorRuntime().wrap(function _callee10$(_context10) {
-          while (1) switch (_context10.prev = _context10.next) {
+        return _regeneratorRuntime().wrap(function _callee9$(_context9) {
+          while (1) switch (_context9.prev = _context9.next) {
             case 0:
-              _context10.prev = 0;
+              _context9.prev = 0;
               transport = new StreamableHTTPServerTransport({
                 sessionIdGenerator: function sessionIdGenerator() {
                   return randomUUID();
@@ -262,9 +262,9 @@ export default function vitePluginSwaggerMcp(_ref) {
                 version: "0.1.0"
               }); // 注册工具
               /***
-               * 获取最新接口文档
+               * 获取模块列表
                */
-              mcpServer.tool("updateSwaggerDoc", "获取最新接口文档", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+              mcpServer.tool("getModules", "获取模块列表", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
                 var res;
                 return _regeneratorRuntime().wrap(function _callee5$(_context5) {
                   while (1) switch (_context5.prev = _context5.next) {
@@ -287,47 +287,22 @@ export default function vitePluginSwaggerMcp(_ref) {
               })));
 
               /***
-               * 获取模块列表
-               */
-              mcpServer.tool("getModules", "获取模块列表", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6() {
-                var res;
-                return _regeneratorRuntime().wrap(function _callee6$(_context6) {
-                  while (1) switch (_context6.prev = _context6.next) {
-                    case 0:
-                      _context6.next = 2;
-                      return swaggerServer.getModules();
-                    case 2:
-                      res = _context6.sent;
-                      return _context6.abrupt("return", {
-                        content: [{
-                          type: "text",
-                          text: JSON.stringify(res)
-                        }]
-                      });
-                    case 4:
-                    case "end":
-                      return _context6.stop();
-                  }
-                }, _callee6);
-              })));
-
-              /***
                * 获取特定模块下的所有接口及返回值类型
                */
               mcpServer.tool("getModuleApis", "获取特定模块下的所有接口及返回值类型", {
                 module: z.string().describe("模块名称")
               }, /*#__PURE__*/function () {
-                var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7(_ref4) {
+                var _ref4 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6(_ref3) {
                   var module, res;
-                  return _regeneratorRuntime().wrap(function _callee7$(_context7) {
-                    while (1) switch (_context7.prev = _context7.next) {
+                  return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+                    while (1) switch (_context6.prev = _context6.next) {
                       case 0:
-                        module = _ref4.module;
+                        module = _ref3.module;
                         if (module) {
-                          _context7.next = 3;
+                          _context6.next = 3;
                           break;
                         }
-                        return _context7.abrupt("return", {
+                        return _context6.abrupt("return", {
                           content: [{
                             type: "text",
                             text: JSON.stringify({
@@ -336,11 +311,11 @@ export default function vitePluginSwaggerMcp(_ref) {
                           }]
                         });
                       case 3:
-                        _context7.next = 5;
+                        _context6.next = 5;
                         return swaggerServer.getModuleApis(module);
                       case 5:
-                        res = _context7.sent;
-                        return _context7.abrupt("return", {
+                        res = _context6.sent;
+                        return _context6.abrupt("return", {
                           content: [{
                             type: "text",
                             text: JSON.stringify(res)
@@ -348,12 +323,12 @@ export default function vitePluginSwaggerMcp(_ref) {
                         });
                       case 7:
                       case "end":
-                        return _context7.stop();
+                        return _context6.stop();
                     }
-                  }, _callee7);
+                  }, _callee6);
                 }));
                 return function (_x4) {
-                  return _ref5.apply(this, arguments);
+                  return _ref4.apply(this, arguments);
                 };
               }());
 
@@ -364,48 +339,48 @@ export default function vitePluginSwaggerMcp(_ref) {
                 path: z.string(),
                 method: z.string()
               }, /*#__PURE__*/function () {
-                var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(args) {
-                  return _regeneratorRuntime().wrap(function _callee8$(_context8) {
-                    while (1) switch (_context8.prev = _context8.next) {
+                var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7(args) {
+                  return _regeneratorRuntime().wrap(function _callee7$(_context7) {
+                    while (1) switch (_context7.prev = _context7.next) {
                       case 0:
-                        _context8.t0 = JSON;
-                        _context8.next = 3;
+                        _context7.t0 = JSON;
+                        _context7.next = 3;
                         return swaggerServer.getApiTypes(args.path, args.method);
                       case 3:
-                        _context8.t1 = _context8.sent;
-                        _context8.t2 = _context8.t0.stringify.call(_context8.t0, _context8.t1);
-                        _context8.t3 = {
+                        _context7.t1 = _context7.sent;
+                        _context7.t2 = _context7.t0.stringify.call(_context7.t0, _context7.t1);
+                        _context7.t3 = {
                           type: "text",
-                          text: _context8.t2
+                          text: _context7.t2
                         };
-                        _context8.t4 = [_context8.t3];
-                        return _context8.abrupt("return", {
-                          content: _context8.t4
+                        _context7.t4 = [_context7.t3];
+                        return _context7.abrupt("return", {
+                          content: _context7.t4
                         });
                       case 8:
                       case "end":
-                        return _context8.stop();
+                        return _context7.stop();
                     }
-                  }, _callee8);
+                  }, _callee7);
                 }));
                 return function (_x5) {
-                  return _ref6.apply(this, arguments);
+                  return _ref5.apply(this, arguments);
                 };
               }());
 
               // Connect to the MCP mcpServer
-              _context10.next = 11;
+              _context9.next = 10;
               return mcpServer.connect(transport);
-            case 11:
+            case 10:
               console.log("MCP server connected");
               server.middlewares.use( /*#__PURE__*/function () {
-                var _ref7 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee9(req, res, next) {
+                var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res, next) {
                   var _req$url;
-                  return _regeneratorRuntime().wrap(function _callee9$(_context9) {
-                    while (1) switch (_context9.prev = _context9.next) {
+                  return _regeneratorRuntime().wrap(function _callee8$(_context8) {
+                    while (1) switch (_context8.prev = _context8.next) {
                       case 0:
                         if (!(req.method === "POST" && (_req$url = req.url) !== null && _req$url !== void 0 && _req$url.startsWith("/_mcp/sse/swagger"))) {
-                          _context9.next = 6;
+                          _context8.next = 6;
                           break;
                         }
                         if (!req.headers["mcp-session-id"] && transport.sessionId) {
@@ -413,34 +388,34 @@ export default function vitePluginSwaggerMcp(_ref) {
                           req.headers["mcp-session-id"] = transport.sessionId;
                         }
                         // Handle the request
-                        _context9.next = 4;
+                        _context8.next = 4;
                         return transport.handleRequest(req, res);
                       case 4:
-                        _context9.next = 7;
+                        _context8.next = 7;
                         break;
                       case 6:
                         next();
                       case 7:
                       case "end":
-                        return _context9.stop();
+                        return _context8.stop();
                     }
-                  }, _callee9);
+                  }, _callee8);
                 }));
                 return function (_x6, _x7, _x8) {
-                  return _ref7.apply(this, arguments);
+                  return _ref6.apply(this, arguments);
                 };
               }());
-              _context10.next = 18;
+              _context9.next = 17;
               break;
-            case 15:
-              _context10.prev = 15;
-              _context10.t0 = _context10["catch"](0);
-              console.log("MCP server error", _context10.t0);
-            case 18:
+            case 14:
+              _context9.prev = 14;
+              _context9.t0 = _context9["catch"](0);
+              console.log("MCP server error", _context9.t0);
+            case 17:
             case "end":
-              return _context10.stop();
+              return _context9.stop();
           }
-        }, _callee10, null, [[0, 15]]);
+        }, _callee9, null, [[0, 14]]);
       }))();
     }
   };
