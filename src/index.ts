@@ -173,20 +173,6 @@ export default function vitePluginSwaggerMcp({
         });
 
         // 注册工具
-        /***
-         * 获取最新接口文档
-         */
-        mcpServer.tool("updateSwaggerDoc", "获取最新接口文档", async () => {
-          const res = await swaggerServer.getModules();
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(res),
-              },
-            ],
-          };
-        });
 
         /***
          * 获取模块列表
