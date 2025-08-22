@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-swagger-mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "vite plugin for swagger mcp",
   "homepage": "https://github.com/mmctjj/vite-plugin-swagger-mcp",
   "repository": {
@@ -13,7 +13,7 @@
   "exports": {
     ".": {
       "import": "./dist/esm/index.js",
-      "require": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
       "types": "./dist/esm/index.d.ts"
     }
   },
