@@ -123,7 +123,8 @@ export class SwaggerMcpServer {
     const op = doc.paths[path]?.[method.toLowerCase()];
     if (!op) throw new Error("接口不存在");
     const originalRef =
-      doc.paths[path][method].responses?.["200"]?.schema?.originalRef;
+      doc.paths[path][method.toLowerCase()].responses?.["200"]?.schema
+        ?.originalRef;
     const resolvedDefinition = this.resolveRef(doc, originalRef);
 
     return {
