@@ -144,6 +144,7 @@ function vitePluginSwaggerMcp({
     name: "vite-plugin-swagger-mcp",
     enforce: "pre",
     async configureServer(server) {
+      var _a, _b;
       try {
         let transport = new import_streamableHttp.StreamableHTTPServerTransport({
           sessionIdGenerator: () => (0, import_node_crypto.randomUUID)(),
@@ -211,11 +212,14 @@ function vitePluginSwaggerMcp({
           })
         );
         await mcpServer.connect(transport);
-        console.log("MCP server connected");
+        console.log(
+          "MCP server connected:",
+          `http://localhost:${(_b = (_a = server.config) == null ? void 0 : _a.server) == null ? void 0 : _b.port}/_mcp/sse/swagger`
+        );
         server.middlewares.use(
           async (req, res, next) => {
-            var _a;
-            if (req.method === "POST" && ((_a = req.url) == null ? void 0 : _a.startsWith("/_mcp/sse/swagger"))) {
+            var _a2;
+            if (req.method === "POST" && ((_a2 = req.url) == null ? void 0 : _a2.startsWith("/_mcp/sse/swagger"))) {
               if (!req.headers["mcp-session-id"] && transport.sessionId) {
                 req.headers["mcp-session-id"] = transport.sessionId;
               }

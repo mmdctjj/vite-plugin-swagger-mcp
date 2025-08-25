@@ -237,7 +237,7 @@ export default function vitePluginSwaggerMcp(_ref) {
     enforce: "pre",
     configureServer: function configureServer(server) {
       return _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee9() {
-        var transport, swaggerServer, mcpServer;
+        var _server$config, transport, swaggerServer, mcpServer;
         return _regeneratorRuntime().wrap(function _callee9$(_context9) {
           while (1) switch (_context9.prev = _context9.next) {
             case 0:
@@ -372,7 +372,7 @@ export default function vitePluginSwaggerMcp(_ref) {
               _context9.next = 10;
               return mcpServer.connect(transport);
             case 10:
-              console.log("MCP server connected");
+              console.log("MCP server connected:", "http://localhost:".concat((_server$config = server.config) === null || _server$config === void 0 || (_server$config = _server$config.server) === null || _server$config === void 0 ? void 0 : _server$config.port, "/_mcp/sse/swagger"));
               server.middlewares.use( /*#__PURE__*/function () {
                 var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res, next) {
                   var _req$url;

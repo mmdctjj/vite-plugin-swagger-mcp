@@ -238,7 +238,10 @@ export default function vitePluginSwaggerMcp({
 
         // Connect to the MCP mcpServer
         await mcpServer.connect(transport);
-        console.log("MCP server connected");
+        console.log(
+          "MCP server connected:",
+          `http://localhost:${server.config?.server?.port}/_mcp/sse/swagger`
+        );
 
         server.middlewares.use(
           async (
