@@ -125,7 +125,7 @@ var SwaggerMcpServer = class {
     const op = (_a = doc.paths[path]) == null ? void 0 : _a[method.toLowerCase()];
     if (!op)
       throw new Error("接口不存在");
-    const originalRef = (_d = (_c = (_b = doc.paths[path][method].responses) == null ? void 0 : _b["200"]) == null ? void 0 : _c.schema) == null ? void 0 : _d.originalRef;
+    const originalRef = (_d = (_c = (_b = doc.paths[path][method.toLowerCase()].responses) == null ? void 0 : _b["200"]) == null ? void 0 : _c.schema) == null ? void 0 : _d.originalRef;
     const resolvedDefinition = this.resolveRef(doc, originalRef);
     return {
       path,

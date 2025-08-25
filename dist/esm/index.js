@@ -204,7 +204,7 @@ export var SwaggerMcpServer = /*#__PURE__*/function () {
               }
               throw new Error("接口不存在");
             case 6:
-              originalRef = (_doc$paths$path$metho3 = doc.paths[path][method].responses) === null || _doc$paths$path$metho3 === void 0 || (_doc$paths$path$metho3 = _doc$paths$path$metho3["200"]) === null || _doc$paths$path$metho3 === void 0 || (_doc$paths$path$metho3 = _doc$paths$path$metho3.schema) === null || _doc$paths$path$metho3 === void 0 ? void 0 : _doc$paths$path$metho3.originalRef;
+              originalRef = (_doc$paths$path$metho3 = doc.paths[path][method.toLowerCase()].responses) === null || _doc$paths$path$metho3 === void 0 || (_doc$paths$path$metho3 = _doc$paths$path$metho3["200"]) === null || _doc$paths$path$metho3 === void 0 || (_doc$paths$path$metho3 = _doc$paths$path$metho3.schema) === null || _doc$paths$path$metho3 === void 0 ? void 0 : _doc$paths$path$metho3.originalRef;
               resolvedDefinition = this.resolveRef(doc, originalRef);
               return _context4.abrupt("return", _objectSpread(_objectSpread({
                 path: path,
