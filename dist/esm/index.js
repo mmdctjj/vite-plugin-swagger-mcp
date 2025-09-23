@@ -163,12 +163,11 @@ export var SwaggerMcpServer = /*#__PURE__*/function () {
                     var _doc$paths$path$metho2;
                     var originalRef = (_doc$paths$path$metho2 = doc.paths[path][method].responses) === null || _doc$paths$path$metho2 === void 0 || (_doc$paths$path$metho2 = _doc$paths$path$metho2["200"]) === null || _doc$paths$path$metho2 === void 0 || (_doc$paths$path$metho2 = _doc$paths$path$metho2.schema) === null || _doc$paths$path$metho2 === void 0 ? void 0 : _doc$paths$path$metho2.originalRef;
                     var resolvedDefinition = _this2.resolveRef(doc, originalRef);
-                    apis.push(_objectSpread(_objectSpread({
+                    apis.push({
                       path: path,
-                      method: method
-                    }, doc.paths[path][method]), {}, {
-                      definitions: resolvedDefinition
-                    }));
+                      method: method,
+                      summary: doc.paths[path][method].summary || ""
+                    });
                   }
                 });
               });
