@@ -108,8 +108,7 @@ export class SwaggerMcpServer {
           apis.push({
             path,
             method,
-            ...doc.paths[path][method],
-            definitions: resolvedDefinition,
+            summary: doc.paths[path][method].summary || "",
           });
         }
       });
