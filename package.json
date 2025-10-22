@@ -1,11 +1,11 @@
 {
   "name": "vite-plugin-swagger-mcp",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "vite plugin for swagger mcp",
-  "homepage": "https://github.com/mmctjj/vite-plugin-swagger-mcp",
+  "homepage": "https://github.com/mmdctjj/vite-plugin-swagger-mcp",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mmctjj/vite-plugin-swagger-mcp.git"
+    "url": "https://github.com/mmdctjj/vite-plugin-swagger-mcp.git"
   },
   "type": "module",
   "main": "dist/cjs/index.js",
