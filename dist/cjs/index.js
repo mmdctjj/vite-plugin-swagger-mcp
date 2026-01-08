@@ -197,13 +197,11 @@ function vitePluginSwaggerMcp({
                 enableJsonResponse: false,
                 onsessioninitialized: (sid) => {
                   transports[sid] = transport;
-                  console.log(`[MCP] Session initialized: ${sid}`);
                 }
               });
               transport.onclose = () => {
                 if (transport.sessionId)
                   delete transports[transport.sessionId];
-                console.log(`[MCP] Session closed: ${transport.sessionId}`);
               };
               const mcpServer = createNewServer();
               await mcpServer.connect(transport);

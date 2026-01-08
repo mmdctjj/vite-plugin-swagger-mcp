@@ -442,12 +442,10 @@ export default function vitePluginSwaggerMcp(_ref) {
                           enableJsonResponse: false,
                           onsessioninitialized: function onsessioninitialized(sid) {
                             transports[sid] = transport;
-                            console.log("[MCP] Session initialized: ".concat(sid));
                           }
                         });
                         transport.onclose = function () {
                           if (transport.sessionId) delete transports[transport.sessionId];
-                          console.log("[MCP] Session closed: ".concat(transport.sessionId));
                         };
 
                         // 为这个 Transport 绑定一个新的 Server 实例，防止 "Already initialized"
