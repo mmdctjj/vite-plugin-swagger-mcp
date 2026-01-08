@@ -11,9 +11,9 @@ function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key i
 function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : String(i); }
 function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 export var SwaggerMcpServer = /*#__PURE__*/function () {
   function SwaggerMcpServer(swaggerUrl, token) {
     _classCallCheck(this, SwaggerMcpServer);
@@ -374,31 +374,42 @@ export default function vitePluginSwaggerMcp(_ref) {
               console.log("MCP server connected:", "http://localhost:".concat((_server$config = server.config) === null || _server$config === void 0 || (_server$config = _server$config.server) === null || _server$config === void 0 ? void 0 : _server$config.port, "/_mcp/sse/swagger"));
               server.middlewares.use( /*#__PURE__*/function () {
                 var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res, next) {
-                  var _req$url;
+                  var url;
                   return _regeneratorRuntime().wrap(function _callee8$(_context8) {
                     while (1) switch (_context8.prev = _context8.next) {
                       case 0:
-                        if (!(req.method === "POST" && (_req$url = req.url) !== null && _req$url !== void 0 && _req$url.startsWith("/_mcp/sse/swagger"))) {
-                          _context8.next = 6;
+                        // 1. 检查路径
+                        url = new URL(req.url || "", "http://".concat(req.headers.host));
+                        if (!(url.pathname === "/_mcp/sse/swagger")) {
+                          _context8.next = 14;
                           break;
                         }
-                        if (!req.headers["mcp-session-id"] && transport.sessionId) {
-                          // 自动补充
-                          req.headers["mcp-session-id"] = transport.sessionId;
+                        if (!(req.method === "GET" || req.method === "POST")) {
+                          _context8.next = 14;
+                          break;
                         }
-                        // Handle the request
-                        _context8.next = 4;
+                        _context8.prev = 3;
+                        _context8.next = 6;
                         return transport.handleRequest(req, res);
-                      case 4:
-                        _context8.next = 7;
-                        break;
                       case 6:
+                        _context8.next = 13;
+                        break;
+                      case 8:
+                        _context8.prev = 8;
+                        _context8.t0 = _context8["catch"](3);
+                        console.error("MCP Transport Error:", _context8.t0);
+                        res.statusCode = 500;
+                        res.end("Internal Server Error");
+                      case 13:
+                        return _context8.abrupt("return");
+                      case 14:
+                        // 如果不是 MCP 的请求，交给 Vite 处理
                         next();
-                      case 7:
+                      case 15:
                       case "end":
                         return _context8.stop();
                     }
-                  }, _callee8);
+                  }, _callee8, null, [[3, 8]]);
                 }));
                 return function (_x6, _x7, _x8) {
                   return _ref6.apply(this, arguments);

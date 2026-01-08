@@ -24,9 +24,9 @@ __export(src_exports, {
 });
 module.exports = __toCommonJS(src_exports);
 var import_mcp = require("@modelcontextprotocol/sdk/server/mcp.js");
-var import_zod = require("zod");
 var import_streamableHttp = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
 var import_node_crypto = require("node:crypto");
+var import_zod = require("zod");
 var SwaggerMcpServer = class {
   constructor(swaggerUrl, token) {
     this.swaggerUrl = swaggerUrl;
@@ -217,15 +217,20 @@ function vitePluginSwaggerMcp({
         );
         server.middlewares.use(
           async (req, res, next) => {
-            var _a2;
-            if (req.method === "POST" && ((_a2 = req.url) == null ? void 0 : _a2.startsWith("/_mcp/sse/swagger"))) {
-              if (!req.headers["mcp-session-id"] && transport.sessionId) {
-                req.headers["mcp-session-id"] = transport.sessionId;
+            const url = new URL(req.url || "", `http://${req.headers.host}`);
+            if (url.pathname === "/_mcp/sse/swagger") {
+              if (req.method === "GET" || req.method === "POST") {
+                try {
+                  await transport.handleRequest(req, res);
+                } catch (err) {
+                  console.error("MCP Transport Error:", err);
+                  res.statusCode = 500;
+                  res.end("Internal Server Error");
+                }
+                return;
               }
-              await transport.handleRequest(req, res);
-            } else {
-              next();
             }
+            next();
           }
         );
       } catch (error) {
