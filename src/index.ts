@@ -1,9 +1,9 @@
-import type { Plugin, ViteDevServer, Connect } from "vite";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-import * as http from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID } from "node:crypto";
+import * as http from "node:http";
+import type { Connect, Plugin, ViteDevServer } from "vite";
+import { z } from "zod";
 import { SchemaObject, SwaggerDocument } from "./type";
 
 export class SwaggerMcpServer {
@@ -248,19 +248,27 @@ export default function vitePluginSwaggerMcp({
             res: http.ServerResponse,
             next: Connect.NextFunction
           ) => {
-            if (
-              req.method === "POST" &&
-              req.url?.startsWith("/_mcp/sse/swagger")
-            ) {
-              if (!req.headers["mcp-session-id"] && transport.sessionId) {
-                // 自动补充
-                req.headers["mcp-session-id"] = transport.sessionId;
+            // 1. 检查路径
+            const url = new URL(req.url || "", `http://${req.headers.host}`);
+
+            if (url.pathname === "/_mcp/sse/swagger") {
+              // 2. 允许 GET (建立连接) 和 POST (发送消息)
+              if (req.method === "GET" || req.method === "POST") {
+                try {
+                  // 如果是 POST 且没有会话 ID，尝试从查询参数或 header 中补全 (取决于 SDK 版本需求)
+                  // StreamableHTTPServerTransport 通常会自动处理 session 逻辑
+                  await transport.handleRequest(req, res);
+                } catch (err) {
+                  console.error("MCP Transport Error:", err);
+                  res.statusCode = 500;
+                  res.end("Internal Server Error");
+                }
+                return; // 处理完后直接返回，不要调用 next()
               }
-              // Handle the request
-              await transport.handleRequest(req, res);
-            } else {
-              next();
             }
+
+            // 如果不是 MCP 的请求，交给 Vite 处理
+            next();
           }
         );
       } catch (error) {
