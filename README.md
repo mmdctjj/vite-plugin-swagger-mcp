@@ -33,6 +33,13 @@ npm run dev
 ```
 Then the MCP server will be available at http://ip:port/_mcp/sse/swagger.
 
+### New MCP endpoint (recommended)
+Newer MCP clients/editors expect the Streamable HTTP "single endpoint" style. Prefer:
+
+- `http://ip:port/_mcp/swagger`
+
+`/_mcp/sse/swagger` is kept as a legacy alias for backward compatibility.
+
 When using VSCode, Cursor, Windsurf, Claude Code, the module will automatically update the config files for you.
 
 ## LICENSE

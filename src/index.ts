@@ -9,7 +9,14 @@ import { SchemaObject, SwaggerDocument } from "./type";
 async function readJsonBody(req: any): Promise<any> {
   let body = "";
   for await (const chunk of req) body += chunk;
-  return JSON.parse(body || "{}");
+  if (!body) return {};
+  try {
+    return JSON.parse(body);
+  } catch {
+    const err = new Error("Invalid JSON body");
+    (err as any).statusCode = 400;
+    throw err;
+  }
 }
 
 export class SwaggerMcpServer {
@@ -141,9 +148,6 @@ export class SwaggerMcpServer {
   }
 }
 
-// 存储会话 ID 对应的 Transport 实例
-const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
-
 export default function vitePluginSwaggerMcp({
   swaggerUrl,
   token,
@@ -157,102 +161,67 @@ export default function vitePluginSwaggerMcp({
     async configureServer(server: ViteDevServer) {
       const swaggerServer = new SwaggerMcpServer(swaggerUrl, token);
 
-      // --- 辅助函数：创建并配置一个新的 MCP Server 实例 ---
-      const createNewServer = () => {
-        const mcpServer = new McpServer({
-          name: "swagger-mcp-server",
-          version: "0.1.0",
-        });
+      // 标准 Streamable HTTP：单 MCP endpoint，POST 发送 JSON-RPC，GET/DELETE 可选（由 transport 处理）
+      const mcpServer = new McpServer({
+        name: "swagger-mcp-server",
+        version: "0.1.0",
+      });
 
-        // 注册所有工具
-        mcpServer.tool("getModules", "获取模块列表", async () => {
-          const res = await swaggerServer.getModules();
+      // 注册所有工具
+      mcpServer.tool("getModules", "获取模块列表", async () => {
+        const res = await swaggerServer.getModules();
+        return { content: [{ type: "text", text: JSON.stringify(res) }] };
+      });
+
+      mcpServer.tool(
+        "getModuleApis",
+        "获取特定模块下的所有接口",
+        { module: z.string().describe("模块名称") },
+        async ({ module }) => {
+          const res = await swaggerServer.getModuleApis(module);
           return { content: [{ type: "text", text: JSON.stringify(res) }] };
-        });
+        }
+      );
 
-        mcpServer.tool(
-          "getModuleApis",
-          "获取特定模块下的所有接口",
-          { module: z.string().describe("模块名称") },
-          async ({ module }) => {
-            const res = await swaggerServer.getModuleApis(module);
-            return { content: [{ type: "text", text: JSON.stringify(res) }] };
-          }
-        );
+      mcpServer.tool(
+        "getApiTypes",
+        "获取特定接口的参数及返回值类型",
+        { path: z.string(), method: z.string() },
+        async (args) => ({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await swaggerServer.getApiTypes(args.path, args.method)
+              ),
+            },
+          ],
+        })
+      );
 
-        mcpServer.tool(
-          "getApiTypes",
-          "获取特定接口的参数及返回值类型",
-          { path: z.string(), method: z.string() },
-          async (args) => ({
-            content: [{ type: "text", text: JSON.stringify(await swaggerServer.getApiTypes(args.path, args.method)) }],
-          })
-        );
+      // 这里使用 stateful session，兼容需要 MCP-Session-Id 的客户端；同时开启 JSON 响应模式以减少 SSE 兼容问题
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        enableJsonResponse: true,
+      });
 
-        return mcpServer;
-      };
+      // 连接一次即可，后续每个 HTTP 请求都走 transport.handleRequest
+      await mcpServer.connect(transport);
 
-      const ENDPOINT = "/_mcp/sse/swagger";
+      const ENDPOINT = "/_mcp/swagger";
+      const LEGACY_ENDPOINT = "/_mcp/sse/swagger";
 
-      server.middlewares.use(ENDPOINT, async (req, res, next) => {
+      const handler = async (req: any, res: any) => {
         try {
-          const url = new URL(req.url || "", `http://${req.headers.host}`);
-          const sessionId = req.headers["mcp-session-id"] as string || url.searchParams.get("sessionId");
-
-          /* ================= POST 请求处理 ================= */
           if (req.method === "POST") {
             const json = await readJsonBody(req);
-            let transport: StreamableHTTPServerTransport;
-
-            // 1. 如果有有效会话，复用 Transport
-            if (sessionId && transports[sessionId]) {
-              transport = transports[sessionId];
-            }
-            // 2. 如果是初始化请求，创建新 Transport 和新 Server
-            else if (!sessionId) {
-              transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: () => randomUUID(),
-                // 如果你的编辑器不支持 SSE 只能接收 JSON 响应，可以设为 true
-                // 但大多数现代编辑器建议保持默认（false）以支持标准流
-                enableJsonResponse: false,
-                onsessioninitialized: (sid) => {
-                  transports[sid] = transport;
-                },
-              });
-
-              transport.onclose = () => {
-                if (transport.sessionId) delete transports[transport.sessionId];
-              };
-
-              // 为这个 Transport 绑定一个新的 Server 实例，防止 "Already initialized"
-              const mcpServer = createNewServer();
-              await mcpServer.connect(transport);
-            }
-            else {
-              res.statusCode = 400;
-              return res.end(JSON.stringify({ error: "Invalid session or not an initialize request" }));
-            }
-
-            // 处理请求
             await transport.handleRequest(req, res, json);
             return;
           }
 
-          /* ================= GET 请求处理 (SSE 建立连接) ================= */
-          if (req.method === "GET") {
-            // 根据 MCP 规范，GET 用于建立 SSE 流
-            // 如果使用 StreamableHTTPServerTransport，它会自动处理
-            // 如果没有 sessionId，则认为是一个全新的连接请求
-            if (!sessionId || !transports[sessionId]) {
-              // 如果是初次连接请求且没有 sessionId，让 transport 处理以发送 endpoint 事件
-              // 这里创建一个临时的 transport 来引导客户端
-              const initTransport = new StreamableHTTPServerTransport();
-              await initTransport.handleRequest(req, res);
-              return;
-            }
-
-            // 已有 session，处理 SSE 流
-            await transports[sessionId].handleRequest(req, res);
+          // GET/DELETE 交给 SDK transport（GET 在 enableJsonResponse=true 时通常会 405）
+          if (req.method === "GET" || req.method === "DELETE") {
+            await transport.handleRequest(req, res);
             return;
           }
 
@@ -261,13 +230,20 @@ export default function vitePluginSwaggerMcp({
         } catch (error) {
           console.error("[MCP Error]", error);
           if (!res.headersSent) {
-            res.statusCode = 500;
-            res.end("Internal Server Error");
+            res.statusCode = (error as any)?.statusCode ?? 500;
+            res.end(
+              res.statusCode === 400 ? "Bad Request" : "Internal Server Error"
+            );
           }
         }
-      });
+      };
 
-      console.log(`✅ MCP Swagger Server mounted at http://localhost:${server.config?.server?.port}${ENDPOINT}`);
+      server.middlewares.use(ENDPOINT, handler);
+      server.middlewares.use(LEGACY_ENDPOINT, handler);
+
+      console.log(
+        `✅ MCP Swagger Server mounted at http://localhost:${server.config?.server?.port}${ENDPOINT}`
+      );
     },
   };
 }

@@ -31,7 +31,15 @@ async function readJsonBody(req) {
   let body = "";
   for await (const chunk of req)
     body += chunk;
-  return JSON.parse(body || "{}");
+  if (!body)
+    return {};
+  try {
+    return JSON.parse(body);
+  } catch {
+    const err = new Error("Invalid JSON body");
+    err.statusCode = 400;
+    throw err;
+  }
 }
 var SwaggerMcpServer = class {
   constructor(swaggerUrl, token) {
@@ -140,7 +148,6 @@ var SwaggerMcpServer = class {
     };
   }
 };
-var transports = {};
 function vitePluginSwaggerMcp({
   swaggerUrl,
   token
@@ -151,74 +158,54 @@ function vitePluginSwaggerMcp({
     async configureServer(server) {
       var _a, _b;
       const swaggerServer = new SwaggerMcpServer(swaggerUrl, token);
-      const createNewServer = () => {
-        const mcpServer = new import_mcp.McpServer({
-          name: "swagger-mcp-server",
-          version: "0.1.0"
-        });
-        mcpServer.tool("getModules", "获取模块列表", async () => {
-          const res = await swaggerServer.getModules();
+      const mcpServer = new import_mcp.McpServer({
+        name: "swagger-mcp-server",
+        version: "0.1.0"
+      });
+      mcpServer.tool("getModules", "获取模块列表", async () => {
+        const res = await swaggerServer.getModules();
+        return { content: [{ type: "text", text: JSON.stringify(res) }] };
+      });
+      mcpServer.tool(
+        "getModuleApis",
+        "获取特定模块下的所有接口",
+        { module: import_v4.z.string().describe("模块名称") },
+        async ({ module: module2 }) => {
+          const res = await swaggerServer.getModuleApis(module2);
           return { content: [{ type: "text", text: JSON.stringify(res) }] };
-        });
-        mcpServer.tool(
-          "getModuleApis",
-          "获取特定模块下的所有接口",
-          { module: import_v4.z.string().describe("模块名称") },
-          async ({ module: module2 }) => {
-            const res = await swaggerServer.getModuleApis(module2);
-            return { content: [{ type: "text", text: JSON.stringify(res) }] };
-          }
-        );
-        mcpServer.tool(
-          "getApiTypes",
-          "获取特定接口的参数及返回值类型",
-          { path: import_v4.z.string(), method: import_v4.z.string() },
-          async (args) => ({
-            content: [{ type: "text", text: JSON.stringify(await swaggerServer.getApiTypes(args.path, args.method)) }]
-          })
-        );
-        return mcpServer;
-      };
-      const ENDPOINT = "/_mcp/sse/swagger";
-      server.middlewares.use(ENDPOINT, async (req, res, next) => {
+        }
+      );
+      mcpServer.tool(
+        "getApiTypes",
+        "获取特定接口的参数及返回值类型",
+        { path: import_v4.z.string(), method: import_v4.z.string() },
+        async (args) => ({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                await swaggerServer.getApiTypes(args.path, args.method)
+              )
+            }
+          ]
+        })
+      );
+      const transport = new import_streamableHttp.StreamableHTTPServerTransport({
+        sessionIdGenerator: () => (0, import_node_crypto.randomUUID)(),
+        enableJsonResponse: true
+      });
+      await mcpServer.connect(transport);
+      const ENDPOINT = "/_mcp/swagger";
+      const LEGACY_ENDPOINT = "/_mcp/sse/swagger";
+      const handler = async (req, res) => {
         try {
-          const url = new URL(req.url || "", `http://${req.headers.host}`);
-          const sessionId = req.headers["mcp-session-id"] || url.searchParams.get("sessionId");
           if (req.method === "POST") {
             const json = await readJsonBody(req);
-            let transport;
-            if (sessionId && transports[sessionId]) {
-              transport = transports[sessionId];
-            } else if (!sessionId) {
-              transport = new import_streamableHttp.StreamableHTTPServerTransport({
-                sessionIdGenerator: () => (0, import_node_crypto.randomUUID)(),
-                // 如果你的编辑器不支持 SSE 只能接收 JSON 响应，可以设为 true
-                // 但大多数现代编辑器建议保持默认（false）以支持标准流
-                enableJsonResponse: false,
-                onsessioninitialized: (sid) => {
-                  transports[sid] = transport;
-                }
-              });
-              transport.onclose = () => {
-                if (transport.sessionId)
-                  delete transports[transport.sessionId];
-              };
-              const mcpServer = createNewServer();
-              await mcpServer.connect(transport);
-            } else {
-              res.statusCode = 400;
-              return res.end(JSON.stringify({ error: "Invalid session or not an initialize request" }));
-            }
             await transport.handleRequest(req, res, json);
             return;
           }
-          if (req.method === "GET") {
-            if (!sessionId || !transports[sessionId]) {
-              const initTransport = new import_streamableHttp.StreamableHTTPServerTransport();
-              await initTransport.handleRequest(req, res);
-              return;
-            }
-            await transports[sessionId].handleRequest(req, res);
+          if (req.method === "GET" || req.method === "DELETE") {
+            await transport.handleRequest(req, res);
             return;
           }
           res.statusCode = 405;
@@ -226,12 +213,18 @@ function vitePluginSwaggerMcp({
         } catch (error) {
           console.error("[MCP Error]", error);
           if (!res.headersSent) {
-            res.statusCode = 500;
-            res.end("Internal Server Error");
+            res.statusCode = (error == null ? void 0 : error.statusCode) ?? 500;
+            res.end(
+              res.statusCode === 400 ? "Bad Request" : "Internal Server Error"
+            );
           }
         }
-      });
-      console.log(`✅ MCP Swagger Server mounted at http://localhost:${(_b = (_a = server.config) == null ? void 0 : _a.server) == null ? void 0 : _b.port}${ENDPOINT}`);
+      };
+      server.middlewares.use(ENDPOINT, handler);
+      server.middlewares.use(LEGACY_ENDPOINT, handler);
+      console.log(
+        `✅ MCP Swagger Server mounted at http://localhost:${(_b = (_a = server.config) == null ? void 0 : _a.server) == null ? void 0 : _b.port}${ENDPOINT}`
+      );
     }
   };
 }

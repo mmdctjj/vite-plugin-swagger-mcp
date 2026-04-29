@@ -22,7 +22,7 @@ function readJsonBody(_x) {
 }
 function _readJsonBody() {
   _readJsonBody = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee10(req) {
-    var body, _iteratorAbruptCompletion, _didIteratorError, _iteratorError, _iterator, _step, chunk;
+    var body, _iteratorAbruptCompletion, _didIteratorError, _iteratorError, _iterator, _step, chunk, err;
     return _regeneratorRuntime().wrap(function _callee10$(_context10) {
       while (1) switch (_context10.prev = _context10.next) {
         case 0:
@@ -74,12 +74,25 @@ function _readJsonBody() {
         case 28:
           return _context10.finish(19);
         case 29:
-          return _context10.abrupt("return", JSON.parse(body || "{}"));
-        case 30:
+          if (body) {
+            _context10.next = 31;
+            break;
+          }
+          return _context10.abrupt("return", {});
+        case 31:
+          _context10.prev = 31;
+          return _context10.abrupt("return", JSON.parse(body));
+        case 35:
+          _context10.prev = 35;
+          _context10.t1 = _context10["catch"](31);
+          err = new Error("Invalid JSON body");
+          err.statusCode = 400;
+          throw err;
+        case 40:
         case "end":
           return _context10.stop();
       }
-    }, _callee10, null, [[3, 15, 19, 29], [20,, 24, 28]]);
+    }, _callee10, null, [[3, 15, 19, 29], [20,, 24, 28], [31, 35]]);
   }));
   return _readJsonBody.apply(this, arguments);
 }
@@ -294,9 +307,6 @@ export var SwaggerMcpServer = /*#__PURE__*/function () {
   }]);
   return SwaggerMcpServer;
 }();
-
-// 存储会话 ID 对应的 Transport 实例
-var transports = {};
 export default function vitePluginSwaggerMcp(_ref) {
   var swaggerUrl = _ref.swaggerUrl,
     token = _ref.token;
@@ -306,211 +316,165 @@ export default function vitePluginSwaggerMcp(_ref) {
     configureServer: function configureServer(server) {
       return _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee9() {
         var _server$config;
-        var swaggerServer, createNewServer, ENDPOINT;
+        var swaggerServer, mcpServer, transport, ENDPOINT, LEGACY_ENDPOINT, handler;
         return _regeneratorRuntime().wrap(function _callee9$(_context9) {
           while (1) switch (_context9.prev = _context9.next) {
             case 0:
-              swaggerServer = new SwaggerMcpServer(swaggerUrl, token); // --- 辅助函数：创建并配置一个新的 MCP Server 实例 ---
-              createNewServer = function createNewServer() {
-                var mcpServer = new McpServer({
-                  name: "swagger-mcp-server",
-                  version: "0.1.0"
-                });
-
-                // 注册所有工具
-                mcpServer.tool("getModules", "获取模块列表", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
-                  var res;
-                  return _regeneratorRuntime().wrap(function _callee5$(_context5) {
-                    while (1) switch (_context5.prev = _context5.next) {
+              swaggerServer = new SwaggerMcpServer(swaggerUrl, token); // 标准 Streamable HTTP：单 MCP endpoint，POST 发送 JSON-RPC，GET/DELETE 可选（由 transport 处理）
+              mcpServer = new McpServer({
+                name: "swagger-mcp-server",
+                version: "0.1.0"
+              }); // 注册所有工具
+              mcpServer.tool("getModules", "获取模块列表", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee5() {
+                var res;
+                return _regeneratorRuntime().wrap(function _callee5$(_context5) {
+                  while (1) switch (_context5.prev = _context5.next) {
+                    case 0:
+                      _context5.next = 2;
+                      return swaggerServer.getModules();
+                    case 2:
+                      res = _context5.sent;
+                      return _context5.abrupt("return", {
+                        content: [{
+                          type: "text",
+                          text: JSON.stringify(res)
+                        }]
+                      });
+                    case 4:
+                    case "end":
+                      return _context5.stop();
+                  }
+                }, _callee5);
+              })));
+              mcpServer.tool("getModuleApis", "获取特定模块下的所有接口", {
+                module: z.string().describe("模块名称")
+              }, /*#__PURE__*/function () {
+                var _ref4 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6(_ref3) {
+                  var module, res;
+                  return _regeneratorRuntime().wrap(function _callee6$(_context6) {
+                    while (1) switch (_context6.prev = _context6.next) {
                       case 0:
-                        _context5.next = 2;
-                        return swaggerServer.getModules();
-                      case 2:
-                        res = _context5.sent;
-                        return _context5.abrupt("return", {
+                        module = _ref3.module;
+                        _context6.next = 3;
+                        return swaggerServer.getModuleApis(module);
+                      case 3:
+                        res = _context6.sent;
+                        return _context6.abrupt("return", {
                           content: [{
                             type: "text",
                             text: JSON.stringify(res)
                           }]
                         });
-                      case 4:
+                      case 5:
                       case "end":
-                        return _context5.stop();
+                        return _context6.stop();
                     }
-                  }, _callee5);
-                })));
-                mcpServer.tool("getModuleApis", "获取特定模块下的所有接口", {
-                  module: z.string().describe("模块名称")
-                }, /*#__PURE__*/function () {
-                  var _ref4 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee6(_ref3) {
-                    var module, res;
-                    return _regeneratorRuntime().wrap(function _callee6$(_context6) {
-                      while (1) switch (_context6.prev = _context6.next) {
-                        case 0:
-                          module = _ref3.module;
-                          _context6.next = 3;
-                          return swaggerServer.getModuleApis(module);
-                        case 3:
-                          res = _context6.sent;
-                          return _context6.abrupt("return", {
-                            content: [{
-                              type: "text",
-                              text: JSON.stringify(res)
-                            }]
-                          });
-                        case 5:
-                        case "end":
-                          return _context6.stop();
-                      }
-                    }, _callee6);
-                  }));
-                  return function (_x5) {
-                    return _ref4.apply(this, arguments);
-                  };
-                }());
-                mcpServer.tool("getApiTypes", "获取特定接口的参数及返回值类型", {
-                  path: z.string(),
-                  method: z.string()
-                }, /*#__PURE__*/function () {
-                  var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7(args) {
-                    return _regeneratorRuntime().wrap(function _callee7$(_context7) {
-                      while (1) switch (_context7.prev = _context7.next) {
-                        case 0:
-                          _context7.t0 = JSON;
-                          _context7.next = 3;
-                          return swaggerServer.getApiTypes(args.path, args.method);
-                        case 3:
-                          _context7.t1 = _context7.sent;
-                          _context7.t2 = _context7.t0.stringify.call(_context7.t0, _context7.t1);
-                          _context7.t3 = {
-                            type: "text",
-                            text: _context7.t2
-                          };
-                          _context7.t4 = [_context7.t3];
-                          return _context7.abrupt("return", {
-                            content: _context7.t4
-                          });
-                        case 8:
-                        case "end":
-                          return _context7.stop();
-                      }
-                    }, _callee7);
-                  }));
-                  return function (_x6) {
-                    return _ref5.apply(this, arguments);
-                  };
-                }());
-                return mcpServer;
-              };
-              ENDPOINT = "/_mcp/sse/swagger";
-              server.middlewares.use(ENDPOINT, /*#__PURE__*/function () {
-                var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res, next) {
-                  var url, _sessionId, json, transport, mcpServer, initTransport;
+                  }, _callee6);
+                }));
+                return function (_x5) {
+                  return _ref4.apply(this, arguments);
+                };
+              }());
+              mcpServer.tool("getApiTypes", "获取特定接口的参数及返回值类型", {
+                path: z.string(),
+                method: z.string()
+              }, /*#__PURE__*/function () {
+                var _ref5 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee7(args) {
+                  return _regeneratorRuntime().wrap(function _callee7$(_context7) {
+                    while (1) switch (_context7.prev = _context7.next) {
+                      case 0:
+                        _context7.t0 = JSON;
+                        _context7.next = 3;
+                        return swaggerServer.getApiTypes(args.path, args.method);
+                      case 3:
+                        _context7.t1 = _context7.sent;
+                        _context7.t2 = _context7.t0.stringify.call(_context7.t0, _context7.t1);
+                        _context7.t3 = {
+                          type: "text",
+                          text: _context7.t2
+                        };
+                        _context7.t4 = [_context7.t3];
+                        return _context7.abrupt("return", {
+                          content: _context7.t4
+                        });
+                      case 8:
+                      case "end":
+                        return _context7.stop();
+                    }
+                  }, _callee7);
+                }));
+                return function (_x6) {
+                  return _ref5.apply(this, arguments);
+                };
+              }());
+
+              // 这里使用 stateful session，兼容需要 MCP-Session-Id 的客户端；同时开启 JSON 响应模式以减少 SSE 兼容问题
+              transport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: function sessionIdGenerator() {
+                  return randomUUID();
+                },
+                enableJsonResponse: true
+              }); // 连接一次即可，后续每个 HTTP 请求都走 transport.handleRequest
+              _context9.next = 8;
+              return mcpServer.connect(transport);
+            case 8:
+              ENDPOINT = "/_mcp/swagger";
+              LEGACY_ENDPOINT = "/_mcp/sse/swagger";
+              handler = /*#__PURE__*/function () {
+                var _ref6 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee8(req, res) {
+                  var json, _statusCode;
                   return _regeneratorRuntime().wrap(function _callee8$(_context8) {
                     while (1) switch (_context8.prev = _context8.next) {
                       case 0:
                         _context8.prev = 0;
-                        url = new URL(req.url || "", "http://".concat(req.headers.host));
-                        _sessionId = req.headers["mcp-session-id"] || url.searchParams.get("sessionId");
-                        /* ================= POST 请求处理 ================= */
                         if (!(req.method === "POST")) {
-                          _context8.next = 24;
+                          _context8.next = 8;
                           break;
                         }
-                        _context8.next = 6;
+                        _context8.next = 4;
                         return readJsonBody(req);
-                      case 6:
+                      case 4:
                         json = _context8.sent;
-                        if (!(_sessionId && transports[_sessionId])) {
-                          _context8.next = 11;
-                          break;
-                        }
-                        transport = transports[_sessionId];
-                        _context8.next = 21;
-                        break;
-                      case 11:
-                        if (_sessionId) {
-                          _context8.next = 19;
-                          break;
-                        }
-                        transport = new StreamableHTTPServerTransport({
-                          sessionIdGenerator: function sessionIdGenerator() {
-                            return randomUUID();
-                          },
-                          // 如果你的编辑器不支持 SSE 只能接收 JSON 响应，可以设为 true
-                          // 但大多数现代编辑器建议保持默认（false）以支持标准流
-                          enableJsonResponse: false,
-                          onsessioninitialized: function onsessioninitialized(sid) {
-                            transports[sid] = transport;
-                          }
-                        });
-                        transport.onclose = function () {
-                          if (transport.sessionId) delete transports[transport.sessionId];
-                        };
-
-                        // 为这个 Transport 绑定一个新的 Server 实例，防止 "Already initialized"
-                        mcpServer = createNewServer();
-                        _context8.next = 17;
-                        return mcpServer.connect(transport);
-                      case 17:
-                        _context8.next = 21;
-                        break;
-                      case 19:
-                        res.statusCode = 400;
-                        return _context8.abrupt("return", res.end(JSON.stringify({
-                          error: "Invalid session or not an initialize request"
-                        })));
-                      case 21:
-                        _context8.next = 23;
+                        _context8.next = 7;
                         return transport.handleRequest(req, res, json);
-                      case 23:
+                      case 7:
                         return _context8.abrupt("return");
-                      case 24:
-                        if (!(req.method === "GET")) {
-                          _context8.next = 33;
+                      case 8:
+                        if (!(req.method === "GET" || req.method === "DELETE")) {
+                          _context8.next = 12;
                           break;
                         }
-                        if (!(!_sessionId || !transports[_sessionId])) {
-                          _context8.next = 30;
-                          break;
-                        }
-                        // 如果是初次连接请求且没有 sessionId，让 transport 处理以发送 endpoint 事件
-                        // 这里创建一个临时的 transport 来引导客户端
-                        initTransport = new StreamableHTTPServerTransport();
-                        _context8.next = 29;
-                        return initTransport.handleRequest(req, res);
-                      case 29:
+                        _context8.next = 11;
+                        return transport.handleRequest(req, res);
+                      case 11:
                         return _context8.abrupt("return");
-                      case 30:
-                        _context8.next = 32;
-                        return transports[_sessionId].handleRequest(req, res);
-                      case 32:
-                        return _context8.abrupt("return");
-                      case 33:
+                      case 12:
                         res.statusCode = 405;
                         res.end("Method Not Allowed");
-                        _context8.next = 41;
+                        _context8.next = 20;
                         break;
-                      case 37:
-                        _context8.prev = 37;
+                      case 16:
+                        _context8.prev = 16;
                         _context8.t0 = _context8["catch"](0);
                         console.error("[MCP Error]", _context8.t0);
                         if (!res.headersSent) {
-                          res.statusCode = 500;
-                          res.end("Internal Server Error");
+                          res.statusCode = (_statusCode = _context8.t0 === null || _context8.t0 === void 0 ? void 0 : _context8.t0.statusCode) !== null && _statusCode !== void 0 ? _statusCode : 500;
+                          res.end(res.statusCode === 400 ? "Bad Request" : "Internal Server Error");
                         }
-                      case 41:
+                      case 20:
                       case "end":
                         return _context8.stop();
                     }
-                  }, _callee8, null, [[0, 37]]);
+                  }, _callee8, null, [[0, 16]]);
                 }));
-                return function (_x7, _x8, _x9) {
+                return function handler(_x7, _x8) {
                   return _ref6.apply(this, arguments);
                 };
-              }());
+              }();
+              server.middlewares.use(ENDPOINT, handler);
+              server.middlewares.use(LEGACY_ENDPOINT, handler);
               console.log("\u2705 MCP Swagger Server mounted at http://localhost:".concat((_server$config = server.config) === null || _server$config === void 0 || (_server$config = _server$config.server) === null || _server$config === void 0 ? void 0 : _server$config.port).concat(ENDPOINT));
-            case 5:
+            case 14:
             case "end":
               return _context9.stop();
           }
