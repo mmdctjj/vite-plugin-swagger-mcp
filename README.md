@@ -26,6 +26,17 @@ export default defineConfig({
   ],
 })
 ```
+
+For a public remote JSON spec, pass the URL directly:
+
+```ts
+swaggerMcp({
+  swaggerUrl: 'https://xquik.com/openapi.json',
+})
+```
+
+The URL feeds the MCP introspection tools only. Keep service credentials out of
+the Vite config unless the spec document itself is private.
 ```
 npm run dev
 
