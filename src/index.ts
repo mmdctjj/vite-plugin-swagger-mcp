@@ -1,23 +1,8 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { randomUUID } from "node:crypto";
+import { toNodeHandler } from "@modelcontextprotocol/node";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import type { Plugin, ViteDevServer } from "vite";
-import { z } from "zod/v4";
+import * as z from "zod/v4";
 import { SchemaObject, SwaggerDocument } from "./type";
-
-// --- 辅助函数：解析 JSON Body ---
-async function readJsonBody(req: any): Promise<any> {
-  let body = "";
-  for await (const chunk of req) body += chunk;
-  if (!body) return {};
-  try {
-    return JSON.parse(body);
-  } catch {
-    const err = new Error("Invalid JSON body");
-    (err as any).statusCode = 400;
-    throw err;
-  }
-}
 
 export class SwaggerMcpServer {
   private swaggerUrl: string;
@@ -161,72 +146,71 @@ export default function vitePluginSwaggerMcp({
     async configureServer(server: ViteDevServer) {
       const swaggerServer = new SwaggerMcpServer(swaggerUrl, token);
 
-      // 标准 Streamable HTTP：单 MCP endpoint，POST 发送 JSON-RPC，GET/DELETE 可选（由 transport 处理）
-      const mcpServer = new McpServer({
-        name: "swagger-mcp-server",
-        version: "0.1.0",
+      // v2 推荐模式：createMcpHandler 接收一个"每请求工厂"，
+      // 每个 HTTP 请求独立创建 McpServer 实例，天然支持多客户端/多会话并发；
+      // 同一端点自动协商 2026-07-28 新协议（modern），并对旧客户端回退 2025-era（legacy stateless）。
+      const mcpHandler = createMcpHandler(() => {
+        const mcpServer = new McpServer({
+          name: "swagger-mcp-server",
+          version: "0.1.0",
+        });
+
+        // 注册所有工具
+        mcpServer.registerTool(
+          "getModules",
+          { description: "获取模块列表" },
+          async () => {
+            const res = await swaggerServer.getModules();
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(res) }],
+            };
+          }
+        );
+
+        mcpServer.registerTool(
+          "getModuleApis",
+          {
+            description: "获取特定模块下的所有接口",
+            inputSchema: z.object({ module: z.string().describe("模块名称") }),
+          },
+          async ({ module }) => {
+            const res = await swaggerServer.getModuleApis(module);
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(res) }],
+            };
+          }
+        );
+
+        mcpServer.registerTool(
+          "getApiTypes",
+          {
+            description: "获取特定接口的参数及返回值类型",
+            inputSchema: z.object({ path: z.string(), method: z.string() }),
+          },
+          async (args) => ({
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  await swaggerServer.getApiTypes(args.path, args.method)
+                ),
+              },
+            ],
+          })
+        );
+
+        return mcpServer;
       });
 
-      // 注册所有工具
-      mcpServer.tool("getModules", "获取模块列表", async () => {
-        const res = await swaggerServer.getModules();
-        return { content: [{ type: "text", text: JSON.stringify(res) }] };
-      });
-
-      mcpServer.tool(
-        "getModuleApis",
-        "获取特定模块下的所有接口",
-        { module: z.string().describe("模块名称") },
-        async ({ module }) => {
-          const res = await swaggerServer.getModuleApis(module);
-          return { content: [{ type: "text", text: JSON.stringify(res) }] };
-        }
-      );
-
-      mcpServer.tool(
-        "getApiTypes",
-        "获取特定接口的参数及返回值类型",
-        { path: z.string(), method: z.string() },
-        async (args) => ({
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                await swaggerServer.getApiTypes(args.path, args.method)
-              ),
-            },
-          ],
-        })
-      );
-
-      // 这里使用 stateful session，兼容需要 MCP-Session-Id 的客户端；同时开启 JSON 响应模式以减少 SSE 兼容问题
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        enableJsonResponse: true,
-      });
-
-      // 连接一次即可，后续每个 HTTP 请求都走 transport.handleRequest
-      await mcpServer.connect(transport);
+      // 包装成 Node (req, res) 处理器，适配 Vite connect 中间件
+      const nodeHandler = toNodeHandler(mcpHandler);
 
       const ENDPOINT = "/_mcp/swagger";
       const LEGACY_ENDPOINT = "/_mcp/sse/swagger";
 
       const handler = async (req: any, res: any) => {
         try {
-          if (req.method === "POST") {
-            const json = await readJsonBody(req);
-            await transport.handleRequest(req, res, json);
-            return;
-          }
-
-          // GET/DELETE 交给 SDK transport（GET 在 enableJsonResponse=true 时通常会 405）
-          if (req.method === "GET" || req.method === "DELETE") {
-            await transport.handleRequest(req, res);
-            return;
-          }
-
-          res.statusCode = 405;
-          res.end("Method Not Allowed");
+          await nodeHandler(req, res);
         } catch (error) {
           console.error("[MCP Error]", error);
           if (!res.headersSent) {

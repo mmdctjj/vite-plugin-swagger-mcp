@@ -1,6 +1,8 @@
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -14,6 +16,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/index.ts
@@ -23,24 +33,9 @@ __export(src_exports, {
   default: () => vitePluginSwaggerMcp
 });
 module.exports = __toCommonJS(src_exports);
-var import_mcp = require("@modelcontextprotocol/sdk/server/mcp.js");
-var import_streamableHttp = require("@modelcontextprotocol/sdk/server/streamableHttp.js");
-var import_node_crypto = require("node:crypto");
-var import_v4 = require("zod/v4");
-async function readJsonBody(req) {
-  let body = "";
-  for await (const chunk of req)
-    body += chunk;
-  if (!body)
-    return {};
-  try {
-    return JSON.parse(body);
-  } catch {
-    const err = new Error("Invalid JSON body");
-    err.statusCode = 400;
-    throw err;
-  }
-}
+var import_node = require("@modelcontextprotocol/node");
+var import_server = require("@modelcontextprotocol/server");
+var z = __toESM(require("zod/v4"));
 var SwaggerMcpServer = class {
   constructor(swaggerUrl, token) {
     this.swaggerUrl = swaggerUrl;
@@ -158,58 +153,59 @@ function vitePluginSwaggerMcp({
     async configureServer(server) {
       var _a, _b;
       const swaggerServer = new SwaggerMcpServer(swaggerUrl, token);
-      const mcpServer = new import_mcp.McpServer({
-        name: "swagger-mcp-server",
-        version: "0.1.0"
+      const mcpHandler = (0, import_server.createMcpHandler)(() => {
+        const mcpServer = new import_server.McpServer({
+          name: "swagger-mcp-server",
+          version: "0.1.0"
+        });
+        mcpServer.registerTool(
+          "getModules",
+          { description: "获取模块列表" },
+          async () => {
+            const res = await swaggerServer.getModules();
+            return {
+              content: [{ type: "text", text: JSON.stringify(res) }]
+            };
+          }
+        );
+        mcpServer.registerTool(
+          "getModuleApis",
+          {
+            description: "获取特定模块下的所有接口",
+            inputSchema: z.object({ module: z.string().describe("模块名称") })
+          },
+          async ({ module: module2 }) => {
+            const res = await swaggerServer.getModuleApis(module2);
+            return {
+              content: [{ type: "text", text: JSON.stringify(res) }]
+            };
+          }
+        );
+        mcpServer.registerTool(
+          "getApiTypes",
+          {
+            description: "获取特定接口的参数及返回值类型",
+            inputSchema: z.object({ path: z.string(), method: z.string() })
+          },
+          async (args) => ({
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  await swaggerServer.getApiTypes(args.path, args.method)
+                )
+              }
+            ]
+          })
+        );
+        return mcpServer;
       });
-      mcpServer.tool("getModules", "获取模块列表", async () => {
-        const res = await swaggerServer.getModules();
-        return { content: [{ type: "text", text: JSON.stringify(res) }] };
-      });
-      mcpServer.tool(
-        "getModuleApis",
-        "获取特定模块下的所有接口",
-        { module: import_v4.z.string().describe("模块名称") },
-        async ({ module: module2 }) => {
-          const res = await swaggerServer.getModuleApis(module2);
-          return { content: [{ type: "text", text: JSON.stringify(res) }] };
-        }
-      );
-      mcpServer.tool(
-        "getApiTypes",
-        "获取特定接口的参数及返回值类型",
-        { path: import_v4.z.string(), method: import_v4.z.string() },
-        async (args) => ({
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                await swaggerServer.getApiTypes(args.path, args.method)
-              )
-            }
-          ]
-        })
-      );
-      const transport = new import_streamableHttp.StreamableHTTPServerTransport({
-        sessionIdGenerator: () => (0, import_node_crypto.randomUUID)(),
-        enableJsonResponse: true
-      });
-      await mcpServer.connect(transport);
+      const nodeHandler = (0, import_node.toNodeHandler)(mcpHandler);
       const ENDPOINT = "/_mcp/swagger";
       const LEGACY_ENDPOINT = "/_mcp/sse/swagger";
       const handler = async (req, res) => {
         try {
-          if (req.method === "POST") {
-            const json = await readJsonBody(req);
-            await transport.handleRequest(req, res, json);
-            return;
-          }
-          if (req.method === "GET" || req.method === "DELETE") {
-            await transport.handleRequest(req, res);
-            return;
-          }
-          res.statusCode = 405;
-          res.end("Method Not Allowed");
+          await nodeHandler(req, res);
         } catch (error) {
           console.error("[MCP Error]", error);
           if (!res.headersSent) {

@@ -31,14 +31,17 @@ npm run dev
 
 # MCP server connected
 ```
-Then the MCP server will be available at http://ip:port/_mcp/sse/swagger.
+Then the MCP server will be available at http://ip:port/_mcp/swagger.
 
-### New MCP endpoint (recommended)
-Newer MCP clients/editors expect the Streamable HTTP "single endpoint" style. Prefer:
+### MCP endpoint
 
-- `http://ip:port/_mcp/swagger`
+The server runs on the latest MCP SDK v2 (`@modelcontextprotocol/server` 2.x) and speaks the 2026-07-28 Streamable HTTP protocol on a single endpoint, with automatic fallback for older clients:
+
+- `http://ip:port/_mcp/swagger` (recommended)
 
 `/_mcp/sse/swagger` is kept as a legacy alias for backward compatibility.
+
+> Requires **Node.js >= 20**.
 
 When using VSCode, Cursor, Windsurf, Claude Code, the module will automatically update the config files for you.
 
